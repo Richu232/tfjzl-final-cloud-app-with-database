@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
-# <HINT> Import any new Models here
+from .models import Course, Lesson, Instructor, Learner, Question, Choice, Submission, Enrollment
 from .models import Course, Enrollment
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
@@ -103,14 +103,34 @@ def enroll(request, course_id):
     return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
 
 
-# <HINT> Create a submit view to create an exam submission record for a course enrollment,
-# you may implement it based on following logic:
-         # Get user and course object, then get the associated enrollment object created when the user enrolled the course
-         # Create a submission object referring to the enrollment
-         # Collect the selected choices from exam form
-         # Add each selected choice object to the submission object
-         # Redirect to show_exam_result with the submission id
-#def submit(request, course_id):
+# --- VIEW METHOD 1: PROCESS FORM SUBMISSION ---
+def submit(request, course_id):
+    # Retrieve course context target object or fail gracefully
+    course = get_object_or_404(Course, pk=course_id)
+    
+    if request.method == 'POST':
+        # Safely determine active application user enrollment profile 
+        try:
+            enrollment = Enrollment.objects.get(user=request.user, course=course)
+        except Enrollment.DoesNotExist:
+            return HttpResponseRedirect(reverse('onlinecourse:course_details', args=(course.id,)))
+
+        # Create base entry tracker object reference instance linking enrollment trace 
+        submission = Submission.objects.create(enrollment=enrollment)
+        
+        # Pull payload inputs and collect targeted choice markers
+        for key, value in request.POST.items():
+            if key.startswith('choice_'):
+                choice_id = int(value)
+                choice_obj = get_object_or_404(Choice, pk=choice_id)
+                submission.choices.add(choice_obj)
+                
+        submission.save()
+        
+        # Route logic down to results breakdown template view
+        return redirect('onlinecourse:show_exam_result', course_id=course.id, submission_id=submission.id)
+
+    return HttpResponseRedirect(reverse('onlinecourse:course_details', args=(course.id,)))
 
 
 # An example method to collect the selected choices from the exam form from the request object
@@ -124,13 +144,50 @@ def extract_answers(request):
    return submitted_anwsers
 
 
-# <HINT> Create an exam result view to check if learner passed exam and show their question results and result for each question,
-# you may implement it based on the following logic:
-        # Get course and submission based on their ids
-        # Get the selected choice ids from the submission record
-        # For each selected choice, check if it is a correct answer or not
-        # Calculate the total score
-#def show_exam_result(request, course_id, submission_id):
+# --- VIEW METHOD 2: CALCULATE EXAM RESULT AND RENDER SUMMARY ---
+def show_exam_result(request, course_id, submission_id):
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(Submission, pk=submission_id)
+    
+    # Trace specific chosen items 
+    selected_choices = submission.choices.all()
+    selected_ids = [choice.id for choice in selected_choices]
+    
+    total_score = 0
+    earned_score = 0
+    
+    # Logic evaluation checklist grid
+    questions_results = []
+    
+    for question in course.question_set.all():
+        total_score += question.grade
+        # Check if the choices selected match the correct items exactly
+        is_correct = question.is_get_score(selected_ids)
+        
+        if is_correct:
+            earned_score += question.grade
+            
+        questions_results.append({
+            'question': question,
+            'is_correct': is_correct
+        })
+        
+    # Calculate score percentage
+    score_percentage = (earned_score / total_score) * 100 if total_score > 0 else 0
+    passed = score_percentage >= 70  # Pass mark boundary definition matching standard thresholds
+    
+    context = {
+        'course': course,
+        'submission': submission,
+        'earned_score': earned_score,
+        'total_score': total_score,
+        'score_percentage': round(score_percentage, 1),
+        'passed': passed,
+        'questions_results': questions_results,
+        'selected_ids': selected_ids
+    }
+    
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
 
 
 
