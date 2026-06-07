@@ -35,21 +35,70 @@
     </div>
 </nav>
 
-<div class="container-fluid">
-    {% if grade > 80 %}
-    <div class="alert alert-success">
-       <!--HINT Display passed info -->
-    </div>
-        {% else %}
-        <div class="alert alert-danger">
-            <!--HINT Display failed info -->
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white text-center">
+            <h2>Exam Results for {{ course.name }}</h2>
         </div>
-        <a class="btn btn-link text-danger" href="{% url 'onlinecourse:course_details' course.id %}">Re-test</a>
-        {% endif %}
-        <div class="card-columns-vertical mt-1">
-        <h5 class="">Exam results</h5>
-            <!--HINT Display exam results-->
+        <div class="card-body text-center">
+            
+            {% if passed %}
+            <div class="alert alert-success py-4" role="alert">
+                <h3 class="alert-heading font-weight-bold">🎉 Congratulations! You Passed!</h3>
+                <p class="mb-0">Excellent work demonstrating mastery over core instruction materials.</p>
+            </div>
+            {% else %}
+            <div class="alert alert-danger py-4" role="alert">
+                <h3 class="alert-heading font-weight-bold">Examination Attempt Unsuccessful</h3>
+                <p class="mb-0">You did not achieve the required minimum score threshold of 70% to pass.</p>
+                <a href="{% url 'onlinecourse:course_details' course.id %}" class="btn btn-warning mt-3">Retake Exam</a>
+            </div>
+            {% endif %}
+
+            <div class="my-4">
+                <h4>Your Total Score: <strong>{{ earned_score }}</strong> out of <strong>{{ total_score }}</strong> points</h4>
+                <div class="progress mt-3" style="height: 35px;">
+                    <div class="progress-bar {% if passed %}bg-success{% else %}bg-danger{% endif %} font-weight-bold" 
+                         role="progressbar" style="width: {{ score_percentage }}%;" aria-valuenow="{{ score_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                         {{ score_percentage }}% Completion Grade
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <div class="card mt-4 shadow-sm mb-5">
+        <div class="card-header bg-secondary text-white">
+            <h4>Detailed Exam Review Checklist</h4>
+        </div>
+        <div class="card-body">
+            {% for item in questions_results %}
+            <div class="border-bottom pb-3 mb-3">
+                <h5>
+                    Question {{ forloop.counter }}: {{ item.question.question_text }}
+                    {% if item.is_correct %}
+                    <span class="badge badge-success float-right">Correct</span>
+                    {% else %}
+                    <span class="badge badge-danger float-right">Incorrect</span>
+                    {% endif %}
+                </h5>
+                <ul class="list-group mt-2">
+                    {% for choice in item.question.choice_set.all %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center {% if choice.id in selected_ids %}list-group-item-info{% endif %}">
+                        <div>
+                            {% if choice.id in selected_ids %}<strong>[Selected] </strong>{% endif %}
+                            {{ choice.choice_text }}
+                        </div>
+                        {% if choice.is_correct %}
+                        <span class="badge badge-success text-uppercase p-2">Correct Answer Target</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
 </body>
 </html>
