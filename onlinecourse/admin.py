@@ -1,34 +1,41 @@
 from django.contrib import admin
-# Seven imported classes required (Course, Lesson, Instructor, Learner, Question, Choice, Submission)
+# 1. Replaced the original models import to include Question, Choice, and Submission
 from .models import Course, Lesson, Instructor, Learner, Question, Choice, Submission
 
-# Choice Inline allows adding choices right inside the Question view
+# <HINT> Register QuestionInline and ChoiceInline classes here
 class ChoiceInline(admin.StackedInline):
     model = Choice
     extra = 4
 
-# Question Inline allows editing questions directly inside the Course page view
 class QuestionInline(admin.StackedInline):
     model = Question
     extra = 2
 
-# Custom Admin representation for Question
-class QuestionAdmin(admin.ModelAdmin):
-    inlines = [ChoiceInline]
-    list_display = ['question_text', 'course', 'grade']
+class LessonInline(admin.StackedInline):
+    model = Lesson
+    extra = 5
 
-# Custom Admin representation for Lesson
-class LessonAdmin(admin.ModelAdmin):
-    list_display = ['title', 'order']
 
-# Custom Admin representation for Course (includes items and lessons inline view)
+# Register your models here.
 class CourseAdmin(admin.ModelAdmin):
-    inlines = [QuestionInline]
+    # 2. Updated to include QuestionInline alongside LessonInline inside CourseAdmin
+    inlines = [LessonInline, QuestionInline]
     list_display = ('name', 'pub_date')
     list_filter = ['pub_date']
     search_fields = ['name', 'description']
 
-# Registering models on Django Site Portal
+
+class LessonAdmin(admin.ModelAdmin):
+    list_display = ['title']
+
+
+# 3. Created the QuestionAdmin class to attach choices to questions
+class QuestionAdmin(admin.ModelAdmin):
+    inlines = [ChoiceInline]
+    list_display = ['question_text', 'course', 'grade']
+
+
+# <HINT> Register Question and Choice models here
 admin.site.register(Course, CourseAdmin)
 admin.site.register(Lesson, LessonAdmin)
 admin.site.register(Question, QuestionAdmin)
